@@ -1,0 +1,64 @@
+#!/usr/bin/env python
+
+import sys
+import time
+import os
+
+def copy_no_rate(from_, to_):
+  while True:
+    b = from_.read(16384)
+    if not b:
+      return
+    to_.write(b)
+
+def copy(from_, to_, rate=None):
+  if rate is None:
+    return copy_no_rate(from_, to_)
+
+  divisor = 4.0
+
+  time_unit = 1 / divisor
+  rate = rate / divisor
+  while True:
+    t = time.time() + time_unit
+
+    window = rate
+    while window > 0:
+      b = from_.read(16384)
+      if not b:
+        return
+      to_.write(b)
+      window-=len(b)
+
+    wait_for = t - time.time()
+    if wait_for > 0:
+      time.sleep(wait_for)
+
+def main(target_dir, suffix, max_entries, rate=None):
+  target_file = os.path.join(target_dir, "%s%s" % (time.strftime("%Y%m%d", time.gmtime()), suffix))
+
+  if not os.path.exists(target_dir):
+    os.makedirs(target_dir)
+
+  try:
+    f = open(target_file, "wb")
+    try:
+      copy(sys.stdin, f, rate)
+    finally:
+      f.close()
+  finally:
+    l = sorted(os.listdir(target_dir))
+    while len(l) > max_entries:
+      os.unlink(os.path.join(target_dir, l.pop(0)))
+
+if __name__ == "__main__":
+  if len(sys.argv) < 4:
+    print >>sys.stderr, "syntax: %s [target dir] [backup suffix] [number of entries to keep] ?rate limit in kb/s?" % sys.argv[0]
+    sys.exit(1)
+
+  if len(sys.argv) == 5:
+    rate = int(sys.argv[4]) * 1024
+  else:
+    rate = None
+
+  main(target_dir=sys.argv[1], suffix=sys.argv[2], max_entries=int(sys.argv[3]), rate=rate)
