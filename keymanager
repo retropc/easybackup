@@ -1,0 +1,65 @@
+#!/usr/bin/env python3.7
+
+import json
+import sys
+import collections
+import os
+from dataclasses import dataclass
+from typing import Optional, List
+
+@dataclass
+class Backup:
+  name: str
+  extension: str
+  key: str
+  keep: int
+
+@dataclass
+class Configuration:
+  authorized_keys: str
+  script_path: str
+  root: str
+  rate: Optional[int]
+  backups: List[Backup]
+
+def parse_config(j):
+  authorized_keys = j["authorized_keys"]
+  script_path = j["script_path"]
+  root = j["root"]
+  rate = j.get("rate")
+
+  backups = []
+  for k, v in j["backups"].items():
+    backups.append(Backup(name=k, extension=v["extension"], keep=int(v["keep"]), key=v["key"]))
+
+  return Configuration(authorized_keys=authorized_keys, script_path=script_path, root=root, rate=rate, backups=backups)
+
+def main(config):
+  with open(config, "r") as f:
+    j = json.load(f)
+
+  c = parse_config(j)
+
+  filename = os.path.abspath(c.authorized_keys)
+  tmp = filename + ".tmp"
+  with open(tmp, "w") as f:
+    for b in c.backups:
+      path = os.path.join(c.root, b.name)
+      f.write(f'restrict,command="{c.script_path} {path} {b.extension} {b.keep}')
+      if c.rate is not None:
+        f.write(f' {c.rate}')
+      f.write(f'" {b.key}\n')
+
+    f.flush()
+    os.fsync(f.fileno())
+
+  os.rename(tmp, filename)
+
+  dir_fd = os.open(os.path.dirname(filename), os.O_RDONLY)
+  try:
+    os.fsync(dir_fd)
+  finally:
+    os.close(dir_fd)
+
+if __name__ == "__main__":
+  main(sys.argv[1])

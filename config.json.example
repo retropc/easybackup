@@ -1,0 +1,14 @@
+{
+  "authorized_keys": "/home/badger/.ssh/authorized_keys",
+  "script_path": "/usr/local/easybackup/easybackup",
+  "root": "/home/badger/backups",
+  "rate": 10000,
+
+  "backups": {
+    "badgers": {
+      "extension":  ".tar.gz",
+      "keep": 10,
+      "key": "ssh-rsa blah blah"
+    }
+  }
+}
