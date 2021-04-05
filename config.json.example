@@ -1,5 +1,8 @@
 {
   "authorized_keys": "/home/badger/.ssh/authorized_keys",
+  "user": "root",
+  "group": "user",
+  "perms": "o0640",
   "script_path": "/usr/local/easybackup/easybackup",
   "root": "/home/badger/backups",
   "rate": 10000,

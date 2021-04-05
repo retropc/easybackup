@@ -4,6 +4,8 @@ import json
 import sys
 import collections
 import os
+import pwd
+import grp
 from dataclasses import dataclass
 from typing import Optional, List
 
@@ -21,6 +23,9 @@ class Configuration:
   root: str
   rate: Optional[int]
   backups: List[Backup]
+  uid: Optional[str]
+  gid: Optional[str]
+  perms: Optional[int]
 
 def parse_config(j):
   authorized_keys = j["authorized_keys"]
@@ -28,13 +33,35 @@ def parse_config(j):
   root = j["root"]
   rate = j.get("rate")
 
+  user = j.get("user")
+  if user:
+    uid = pwd.getpwnam(user).pw_uid
+  else:
+    uid = None
+
+  group = j.get("group")
+  if group:
+    gid = grp.getgrnam(group).gr_gid
+  else:
+    gid = None
+
+  perms = None
+  perms_s = j.get("perms")
+  if perms_s:
+    if perms_s.startswith("o"):
+      perms = int(perms_s[1:], 8)
+    else:
+      raise Exception("bad permissions: %r" % perms_s)
+
   backups = []
   for k, v in j["backups"].items():
     backups.append(Backup(name=k, extension=v["extension"], keep=int(v["keep"]), key=v["key"]))
 
-  return Configuration(authorized_keys=authorized_keys, script_path=script_path, root=root, rate=rate, backups=backups)
+  return Configuration(authorized_keys=authorized_keys, script_path=script_path, root=root, rate=rate, backups=backups, uid=uid, gid=gid, perms=perms)
 
 def main(config):
+  config_full = os.path.abspath(config)
+
   with open(config, "r") as f:
     j = json.load(f)
 
@@ -43,6 +70,13 @@ def main(config):
   filename = os.path.abspath(c.authorized_keys)
   tmp = filename + ".tmp"
   with open(tmp, "w") as f:
+    if c.uid is not None:
+      os.fchown(f.fileno(), c.uid, -1)
+    if c.gid is not None:
+      os.fchown(f.fileno(), -1, c.gid)
+    if c.perms is not None:
+      os.fchmod(f.fileno(), c.perms)
+
     for b in c.backups:
       path = os.path.join(c.root, b.name)
       f.write(f'restrict,command="{c.script_path} {path} {b.extension} {b.keep}')
