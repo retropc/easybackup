@@ -4,35 +4,43 @@ import sys
 import time
 import os
 
-def copy_no_rate(from_, to_):
+class RateLimiter:
+  WINDOWS = 10
+  def __init__(self, max_rate_bps):
+    self.rate = rate
+    self.check_every = rate // self.WINDOWS
+    self.last_time = time.time()
+    self.bytes = 0
+
+  def data(self, l):
+    self.bytes+=l
+    if self.bytes < self.check_every:
+      return
+
+    now = time.time()
+    delta_time = now - self.last_time
+    expected = self.rate * delta_time
+
+    if self.bytes > expected:
+      sleep_for = (self.bytes - expected) / self.rate
+      time.sleep(sleep_for)
+      now = time.time()
+
+    self.last_time = now
+    self.bytes = 0
+
+def copy(from_, to_, rate=None):
+  if rate:
+    throttle = RateLimiter(rate).data
+  else:
+    throttle = lambda x: None
+
   while True:
     b = from_.read(16384)
     if not b:
       return
     to_.write(b)
-
-def copy(from_, to_, rate=None):
-  if rate is None:
-    return copy_no_rate(from_, to_)
-
-  divisor = 4.0
-
-  time_unit = 1 / divisor
-  rate = rate / divisor
-  while True:
-    t = time.time() + time_unit
-
-    window = rate
-    while window > 0:
-      b = from_.read(16384)
-      if not b:
-        return
-      to_.write(b)
-      window-=len(b)
-
-    wait_for = t - time.time()
-    if wait_for > 0:
-      time.sleep(wait_for)
+    throttle(len(b))
 
 def main(target_dir, suffix, max_entries, rate=None, hourly=False):
   if hourly:
