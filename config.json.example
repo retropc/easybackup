@@ -11,6 +11,13 @@
     "badgers": {
       "extension":  ".tar.gz",
       "keep": 10,
+      "hourly": false,
+      "key": "ssh-rsa blah blah"
+    },
+    "badgers2": {
+      "extension":  ".tar.gz",
+      "keep": 10,
+      "hourly": true,
       "key": "ssh-rsa blah blah"
     }
   }

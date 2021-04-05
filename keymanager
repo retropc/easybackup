@@ -15,6 +15,7 @@ class Backup:
   extension: str
   key: str
   keep: int
+  hourly: bool
 
 @dataclass
 class Configuration:
@@ -55,7 +56,7 @@ def parse_config(j):
 
   backups = []
   for k, v in j["backups"].items():
-    backups.append(Backup(name=k, extension=v["extension"], keep=int(v["keep"]), key=v["key"]))
+    backups.append(Backup(name=k, extension=v["extension"], keep=int(v["keep"]), key=v["key"], hourly=bool(v["hourly"])))
 
   return Configuration(authorized_keys=authorized_keys, script_path=script_path, root=root, rate=rate, backups=backups, uid=uid, gid=gid, perms=perms)
 
@@ -80,7 +81,12 @@ def main(config):
     f.write(f"# GENERATED FILE -- DO NOT EDIT -- SOURCE: {config_full}\n")
     for b in c.backups:
       path = os.path.join(c.root, b.name)
-      f.write(f'restrict,command="{c.script_path} {path} {b.extension} {b.keep}')
+      if b.hourly:
+        hourly = " -h"
+      else:
+        hourly = ""
+
+      f.write(f'restrict,command="{c.script_path}{hourly} {path} {b.extension} {b.keep}')
       if c.rate is not None:
         f.write(f' {c.rate}')
       f.write(f'" {b.key}\n')
