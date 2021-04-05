@@ -77,6 +77,7 @@ def main(config):
     if c.perms is not None:
       os.fchmod(f.fileno(), c.perms)
 
+    f.write(f"# GENERATED FILE -- DO NOT EDIT -- SOURCE: {config_full}\n")
     for b in c.backups:
       path = os.path.join(c.root, b.name)
       f.write(f'restrict,command="{c.script_path} {path} {b.extension} {b.keep}')
@@ -84,6 +85,7 @@ def main(config):
         f.write(f' {c.rate}')
       f.write(f'" {b.key}\n')
 
+    f.write(f"# GENERATED FILE -- DO NOT EDIT -- SOURCE: {config_full}\n")
     f.flush()
     os.fsync(f.fileno())
 
