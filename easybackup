@@ -46,11 +46,9 @@ def main(target_dir, suffix, max_entries, rate=None, hourly=False):
     os.makedirs(target_dir)
 
   try:
-    f = open(target_file, "wb")
-    try:
+    with open(target_file, "wb") as f:
       copy(sys.stdin.buffer, f, rate)
-    finally:
-      f.close()
+      os.fsync(f.fileno())
   finally:
     l = sorted(os.listdir(target_dir))
     while len(l) > max_entries:
